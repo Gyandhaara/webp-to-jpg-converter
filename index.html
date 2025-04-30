@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<!--
+MIT License
+
+Copyright (c) 2025 Reetesh Chandrawanshi (GyanDhaara.in)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-----------------------------------------------------------
+Third-Party Technologies and Licenses:
+-----------------------------------------------------------
+
+1. Tailwind CSS
+- License: MIT License
+- Source: https://tailwindcss.com/
+- Copyright: Tailwind Labs, Inc.
+
+2. Font Awesome Free Icons
+- License: CC BY 4.0 (Creative Commons Attribution 4.0 International)
+- Source: https://fontawesome.com/
+- Copyright: Fonticons, Inc.
+
+3. HTML5 Canvas API
+- License: W3C Software License (HTML5 Specification)
+- Source: https://www.w3.org/TR/html5/
+- Copyright: World Wide Web Consortium (W3C)
+
+4. JavaScript (ECMAScript)
+- License: ECMA International (BSD-like)
+- Source: https://www.ecma-international.org/
+- Copyright: ECMA International
+
+5. Google Fonts API (Implicit)
+- License: Apache License 2.0
+- Source: https://fonts.google.com/
+- Copyright: Google LLC
+
+-----------------------------------------------------------
+Implementation Notes:
+-----------------------------------------------------------
+1. All image processing occurs client-side in the browser
+2. No images are transmitted to external servers
+3. Zero data retention policy - files are discarded after processing
+4. Maximum file size limit: 10MB
+5. Supported input format: WEBP
+6. Output format: JPG/JPEG
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebP to JPG Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Custom styles for scrollable tabs */
+    .tabs-container {
+      position: relative;
+    }
+    .tabs-scroll {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      scroll-behavior: smooth;
+      margin-bottom: -1px;
+    }
+    .tabs-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-button {
+      flex: 0 0 auto;
+      padding: 0.5rem 1rem;
+      margin-right: 0.25rem;
+      font-weight: 500;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-button:hover {
+      color: #3b82f6;
+    }
+    .tab-button.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+    }
+    
+    /* Mobile-specific styles */
+    @media (max-width: 768px) {
+      .mobile-container {
+        max-width: 100% !important;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .mobile-content {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 0;
+        margin-left: 0;
+        margin-right: 0;
+      }
+      .mobile-padding {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="mobile-container max-w-4xl mx-auto p-0 md:p-6">
+    <div class="mobile-content bg-white rounded-xl shadow-md overflow-hidden">
+      <div class="mobile-padding p-6">
+        <h1 class="text-2xl md:text-3xl font-semibold text-center mb-6 text-blue-600">
+          <i class="fas fa-exchange-alt mr-2"></i>WebP to JPG Converter
+        </h1>
+
+        <!-- Tabs Navigation with Scroll -->
+        <div class="tabs-container mb-6">
+          <div class="tabs-scroll" id="tabsScroll">
+            <button id="converterTab" class="tab-button active">
+              <i class="fas fa-exchange-alt mr-2"></i>Converter
+            </button>
+            <button id="legalTab" class="tab-button">
+              <i class="fas fa-gavel mr-2"></i>Legal Information
+            </button>
+            <button id="creditsTab" class="tab-button">
+              <i class="fas fa-users mr-2"></i>Credits
+            </button>
+          </div>
+        </div>
+
+        <!-- Converter Tab Content -->
+        <div id="converterContent">
+          <!-- Drag & Drop Zone -->
+          <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer transition-all duration-300 hover:border-blue-400 hover:bg-blue-50">
+            <div class="flex flex-col items-center justify-center space-y-3">
+              <i class="fas fa-cloud-upload-alt text-4xl text-blue-400"></i>
+              <p class="text-gray-500 font-medium">Click to browse or drag & drop WebP images</p>
+              <p class="text-xs text-gray-400">Supports: WEBP (Max 10MB)</p>
+            </div>
+            <input type="file" id="fileInput" accept="image/webp" class="hidden" />
+          </div>
+
+          <!-- Conversion Controls -->
+          <div class="mt-6 space-y-4">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-sm font-medium">JPG Quality: <span id="qualityValue" class="font-bold">85</span>%</label>
+                <span id="estimatedSize" class="text-xs text-gray-500 hidden">Estimated: ~0KB</span>
+              </div>
+              <input type="range" id="qualitySlider" min="10" max="95" value="85" 
+                     class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+              <button id="convertBtn" class="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                <i class="fas fa-exchange-alt"></i> Convert to JPG
+              </button>
+              <button id="resetBtn" class="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legal Information Tab Content -->
+        <div id="legalContent" class="hidden">
+          <div class="space-y-6">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 class="font-semibold text-blue-700 mb-2"><i class="fas fa-copyright mr-2"></i>Copyright Notice</h3>
+              <p class="text-sm text-gray-700">All images processed by this tool remain the exclusive property of their respective copyright holders. This service does not claim ownership, license, or rights to any uploaded content. Users must ensure they possess all necessary permissions, releases, and rights before uploading any images. Unauthorized use of copyrighted material is strictly prohibited and may result in legal action by the rightful owners.</p>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 class="font-semibold text-blue-700 mb-2"><i class="fas fa-balance-scale mr-2"></i>Terms of Use</h3>
+              <p class="text-sm text-gray-700">By accessing this tool, you agree to comply with all applicable laws regarding copyright and intellectual property. You expressly warrant that any content you upload: (1) you own or have legal authorization to use, (2) does not infringe any third-party rights, and (3) complies with all relevant regulations. Prohibited uses include but are not limited to: processing illegal content, infringing materials, or content violating privacy rights. We reserve the right to terminate access for any violation of these terms.</p>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 class="font-semibold text-blue-700 mb-2"><i class="fas fa-lock mr-2"></i>Privacy & Data Protection</h3>
+              <p class="text-sm text-gray-700">This tool operates entirely client-side in your browser. No images are transmitted to, stored on, or processed by our servers. We implement a strict zero-data-retention policy - all processing occurs locally in your browser session and is automatically discarded when you close the tab. We do not collect, analyze, or monetize your data in any way. For transparency: no cookies, trackers, or analytics are employed in this application.</p>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 class="font-semibold text-blue-700 mb-2"><i class="fas fa-gavel mr-2"></i>DMCA Compliance & Copyright Infringement</h3>
+              <p class="text-sm text-gray-700">We respect intellectual property rights and comply with the Digital Millennium Copyright Act (DMCA). If you believe your copyrighted work has been improperly processed through this tool, please submit a written notice containing: (1) Your contact information, (2) Detailed description of the copyrighted work, (3) Identification of the allegedly infringing material, (4) Statement of good faith belief, and (5) Verification of accuracy under penalty of perjury. Submit notices to our designated agent at info@gyandhaara.in. We will respond to valid DMCA notices within 72 hours.</p>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h3 class="font-semibold text-blue-700 mb-2"><i class="fas fa-shield-alt mr-2"></i>Limitation of Liability</h3>
+              <p class="text-sm text-gray-700">THIS TOOL IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. WE EXPLICITLY DISCLAIM ALL LIABILITY FOR: (1) ANY UNAUTHORIZED USE OF COPYRIGHTED MATERIALS BY USERS, (2) TECHNICAL ISSUES RESULTING IN DATA LOSS, (3) ANY THIRD-PARTY CLAIMS ARISING FROM USER CONTENT. By using this service, you agree to indemnify and hold harmless the developers from any claims, damages, or expenses resulting from your violation of these terms. Maximum liability is limited to direct damages not exceeding ₹1000.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credits Tab Content -->
+        <div id="creditsContent" class="hidden">
+          <div class="space-y-6">
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+              <h3 class="font-semibold text-green-700 mb-2"><i class="fas fa-code mr-2"></i>Technologies Used</h3>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                <!-- Core Technologies -->
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fab fa-html5 text-orange-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">HTML5</p>
+                    <p class="text-xs text-gray-500">Markup language</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fab fa-css3-alt text-blue-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">CSS3</p>
+                    <p class="text-xs text-gray-500">Styling</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fab fa-js-square text-yellow-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">JavaScript (ES6)</p>
+                    <p class="text-xs text-gray-500">Programming</p>
+                  </div>
+                </div>
+                
+                <!-- Libraries -->
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-wind text-blue-400 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">Tailwind CSS</p>
+                    <p class="text-xs text-gray-500">Utility-first CSS</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-icons text-purple-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">Font Awesome</p>
+                    <p class="text-xs text-gray-500">Icons</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-paint-brush text-green-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">Canvas API</p>
+                    <p class="text-xs text-gray-500">Image processing</p>
+                  </div>
+                </div>
+                
+                <!-- APIs -->
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-file-image text-red-500 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">WebP Format</p>
+                    <p class="text-xs text-gray-500">Input format</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-file-image text-blue-600 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">JPEG Format</p>
+                    <p class="text-xs text-gray-500">Output format</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 bg-white rounded-lg border">
+                  <i class="fas fa-mobile-alt text-purple-600 text-2xl mr-3"></i>
+                  <div>
+                    <p class="font-medium">Responsive Design</p>
+                    <p class="text-xs text-gray-500">Mobile compatibility</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+              <h3 class="font-semibold text-green-700 mb-2"><i class="fas fa-heart mr-2"></i>Open Source Acknowledgements</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-3 rounded-lg border">
+                  <p class="font-medium">Tailwind CSS</p>
+                  <p class="text-xs text-gray-500 mb-2">MIT Licensed utility framework</p>
+                  <a href="https://tailwindcss.com/" target="_blank" class="text-xs text-blue-600 hover:underline">https://tailwindcss.com/</a>
+                </div>
+                <div class="bg-white p-3 rounded-lg border">
+                  <p class="font-medium">Font Awesome</p>
+                  <p class="text-xs text-gray-500 mb-2">CC BY 4.0 Licensed icons</p>
+                  <a href="https://fontawesome.com/" target="_blank" class="text-xs text-blue-600 hover:underline">https://fontawesome.com/</a>
+                </div>
+                <div class="bg-white p-3 rounded-lg border">
+                  <p class="font-medium">HTML5 Canvas</p>
+                  <p class="text-xs text-gray-500 mb-2">W3C Standard for client-side processing</p>
+                  <a href="https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API" target="_blank" class="text-xs text-blue-600 hover:underline">MDN Documentation</a>
+                </div>
+                <div class="bg-white p-3 rounded-lg border">
+                  <p class="font-medium">WebP Image Format</p>
+                  <p class="text-xs text-gray-500 mb-2">Developed by Google</p>
+                  <a href="https://developers.google.com/speed/webp" target="_blank" class="text-xs text-blue-600 hover:underline">Google Developers</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+              <h3 class="font-semibold text-green-700 mb-2"><i class="fas fa-users mr-2"></i>Development Team</h3>
+              <p class="text-sm text-gray-700">This privacy-focused tool was developed by the GyanDhaara.in technical team with special attention to:</p>
+              <ul class="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
+                <li>Client-side only processing architecture</li>
+                <li>Zero-data-retention policy implementation</li>
+                <li>Copyright protection mechanisms</li>
+                <li>Cross-platform compatibility</li>
+                <li>User-friendly interface</li>
+                <li>Efficient image conversion algorithms</li>
+              </ul>
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+              <h3 class="font-semibold text-green-700 mb-2"><i class="fas fa-hands-helping mr-2"></i>Special Thanks</h3>
+              <p class="text-sm text-gray-700">We extend our gratitude to:</p>
+              <ul class="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
+                <li>The open source community for their invaluable contributions</li>
+                <li>Our beta testers for quality assurance feedback</li>
+                <li>Web standards organizations for enabling client-side solutions</li>
+                <li>Our users for supporting privacy-conscious tools</li>
+                <li>Browser developers for implementing powerful APIs</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div id="resultsSection" class="hidden bg-gray-50 border-t p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Original Image -->
+          <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <p class="font-semibold mb-3 text-gray-700 flex items-center gap-2">
+              <i class="fas fa-image text-blue-400"></i> Original WebP
+            </p>
+            <div class="relative aspect-square bg-gray-100 rounded-md overflow-hidden">
+              <img id="originalImg" class="absolute inset-0 w-full h-full object-contain">
+            </div>
+            <div class="mt-3 flex justify-between items-center text-sm">
+              <span id="originalDimensions" class="text-gray-500"></span>
+              <span id="originalSize" class="font-medium"></span>
+            </div>
+          </div>
+
+          <!-- Converted Image -->
+          <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <p class="font-semibold mb-3 text-gray-700 flex items-center gap-2">
+              <i class="fas fa-file-export text-green-400"></i> Converted JPG
+            </p>
+            <div class="relative aspect-square bg-gray-100 rounded-md overflow-hidden">
+              <img id="convertedImg" class="absolute inset-0 w-full h-full object-contain">
+            </div>
+            <div class="mt-3 flex justify-between items-center text-sm">
+              <span id="convertedDimensions" class="text-gray-500"></span>
+              <span id="convertedSize" class="font-medium"></span>
+            </div>
+            <div class="mt-4 flex flex-col sm:flex-row gap-3">
+              <button id="downloadBtn" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
+                <i class="fas fa-download"></i> Download JPG
+              </button>
+              <button id="copyBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div id="stats" class="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100 hidden">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+              <p class="text-xs text-blue-600">Original Size</p>
+              <p id="statsOriginal" class="font-bold">0 KB</p>
+            </div>
+            <div>
+              <p class="text-xs text-blue-600">JPG Size</p>
+              <p id="statsConverted" class="font-bold">0 KB</p>
+            </div>
+            <div>
+              <p class="text-xs text-blue-600">Size Change</p>
+              <p id="statsChange" class="font-bold text-green-600">0%</p>
+            </div>
+            <div>
+              <p class="text-xs text-blue-600">Quality</p>
+              <p id="statsQuality" class="font-bold">85%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center text-xs text-gray-500 mt-4 space-y-1">
+      <div>© 2025 WebP to JPG Converter | GyanDhaara.in | All rights reserved</div>
+      <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
+        <a href="https://gyandhaara.in/en/terms-and-conditions/" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="hover:text-blue-600 transition-colors">
+          Terms and Conditions
+        </a>
+        <a href="https://gyandhaara.in/en/privacy-policy-2/" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="hover:text-blue-600 transition-colors">
+          Privacy Policy
+        </a>
+        <a href="https://gyandhaara.in/en/disclaimer/" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="hover:text-blue-600 transition-colors">
+          Disclaimer
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Modal -->
+  <div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-lg max-w-sm w-full text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p class="font-medium">Converting your image...</p>
+      <p id="loadingProgress" class="text-sm text-gray-500 mt-1">0%</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM Elements
+      const elements = {
+        fileInput: document.getElementById('fileInput'),
+        dropZone: document.getElementById('dropZone'),
+        qualitySlider: document.getElementById('qualitySlider'),
+        qualityValue: document.getElementById('qualityValue'),
+        estimatedSize: document.getElementById('estimatedSize'),
+        convertBtn: document.getElementById('convertBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        downloadBtn: document.getElementById('downloadBtn'),
+        copyBtn: document.getElementById('copyBtn'),
+        originalImg: document.getElementById('originalImg'),
+        convertedImg: document.getElementById('convertedImg'),
+        originalSize: document.getElementById('originalSize'),
+        convertedSize: document.getElementById('convertedSize'),
+        originalDimensions: document.getElementById('originalDimensions'),
+        convertedDimensions: document.getElementById('convertedDimensions'),
+        resultsSection: document.getElementById('resultsSection'),
+        stats: document.getElementById('stats'),
+        statsOriginal: document.getElementById('statsOriginal'),
+        statsConverted: document.getElementById('statsConverted'),
+        statsChange: document.getElementById('statsChange'),
+        statsQuality: document.getElementById('statsQuality'),
+        loadingModal: document.getElementById('loadingModal'),
+        loadingProgress: document.getElementById('loadingProgress'),
+        converterTab: document.getElementById('converterTab'),
+        legalTab: document.getElementById('legalTab'),
+        creditsTab: document.getElementById('creditsTab'),
+        converterContent: document.getElementById('converterContent'),
+        legalContent: document.getElementById('legalContent'),
+        creditsContent: document.getElementById('creditsContent'),
+        tabsScroll: document.getElementById('tabsScroll')
+      };
+
+      // State
+      let state = {
+        originalFile: null,
+        convertedBlob: null,
+        convertedUrl: null
+      };
+
+      // Event Listeners
+      setupEventListeners();
+
+      function setupEventListeners() {
+        // Quality slider
+        elements.qualitySlider.addEventListener('input', updateQualityDisplay);
+        elements.qualitySlider.addEventListener('change', estimateConversion);
+
+        // File input
+        elements.fileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop
+        elements.dropZone.addEventListener('click', () => elements.fileInput.click());
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          elements.dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+          elements.dropZone.addEventListener(eventName, highlightDropZone, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+          elements.dropZone.addEventListener(eventName, unhighlightDropZone, false);
+        });
+        elements.dropZone.addEventListener('drop', handleDrop, false);
+
+        // Buttons
+        elements.convertBtn.addEventListener('click', convertImage);
+        elements.resetBtn.addEventListener('click', resetTool);
+        elements.downloadBtn.addEventListener('click', downloadImage);
+        elements.copyBtn.addEventListener('click', copyImageLink);
+        
+        // Tab switching
+        elements.converterTab.addEventListener('click', () => switchTab('converter'));
+        elements.legalTab.addEventListener('click', () => switchTab('legal'));
+        elements.creditsTab.addEventListener('click', () => switchTab('credits'));
+      }
+
+      function switchTab(tabName) {
+        // Reset all tabs
+        document.querySelectorAll('.tab-button').forEach(tab => {
+          tab.classList.remove('active', 'text-blue-600', 'border-blue-600');
+        });
+        elements.converterContent.classList.add('hidden');
+        elements.legalContent.classList.add('hidden');
+        elements.creditsContent.classList.add('hidden');
+        
+        // Activate selected tab
+        const activeTab = document.getElementById(`${tabName}Tab`);
+        activeTab.classList.add('active', 'text-blue-600', 'border-blue-600');
+        document.getElementById(`${tabName}Content`).classList.remove('hidden');
+        
+        // Scroll tab into view if needed
+        activeTab.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      function highlightDropZone() {
+        elements.dropZone.classList.add('border-blue-500', 'bg-blue-50');
+      }
+
+      function unhighlightDropZone() {
+        elements.dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      }
+
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const file = dt.files[0];
+        if (file && file.type.match('image.webp')) {
+          handleFile(file);
+        }
+      }
+
+      function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+      }
+
+      function handleFile(file) {
+        // Validate file
+        if (!file.type.match('image/webp')) {
+          showAlert('Please upload a valid WebP image', 'error');
+          return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+          showAlert('Image size should be less than 10MB', 'error');
+          return;
+        }
+
+        state.originalFile = file;
+        
+        // Display original image
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          elements.originalImg.src = e.target.result;
+          
+          // Get image dimensions
+          const img = new Image();
+          img.onload = () => {
+            elements.originalDimensions.textContent = `${img.width} × ${img.height} px`;
+            elements.originalSize.textContent = formatFileSize(file.size);
+            
+            // Show results section
+            elements.resultsSection.classList.remove('hidden');
+            elements.stats.classList.add('hidden');
+            
+            // Estimate conversion
+            estimateConversion();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function updateQualityDisplay() {
+        elements.qualityValue.textContent = elements.qualitySlider.value;
+        elements.statsQuality.textContent = `${elements.qualitySlider.value}%`;
+      }
+
+      function estimateConversion() {
+        if (!state.originalFile) return;
+        
+        const quality = elements.qualitySlider.value / 100;
+        const originalSize = state.originalFile.size;
+        let estimatedSize;
+        
+        if (quality > 0.8) estimatedSize = originalSize * 0.9;
+        else if (quality > 0.5) estimatedSize = originalSize * 0.7;
+        else estimatedSize = originalSize * 0.5;
+        
+        elements.estimatedSize.textContent = `Estimated: ~${formatFileSize(estimatedSize)}`;
+        elements.estimatedSize.classList.remove('hidden');
+      }
+
+      function convertImage() {
+        if (!state.originalFile) {
+          showAlert('Please upload a WebP image first', 'error');
+          return;
+        }
+
+        showLoading(true);
+        
+        const quality = elements.qualitySlider.value / 100;
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        
+        img.onload = () => {
+          elements.loadingProgress.textContent = '25%';
+          canvas.width = img.width;
+          canvas.height = img.height;
+          elements.loadingProgress.textContent = '50%';
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          elements.loadingProgress.textContent = '75%';
+          
+          let progress = 75;
+          const progressInterval = setInterval(() => {
+            progress += 1;
+            if (progress >= 95) clearInterval(progressInterval);
+            elements.loadingProgress.textContent = `${progress}%`;
+          }, 50);
+          
+          canvas.toBlob(
+            blob => {
+              clearInterval(progressInterval);
+              elements.loadingProgress.textContent = '100%';
+              
+              state.convertedBlob = blob;
+              state.convertedUrl = URL.createObjectURL(blob);
+              
+              elements.convertedImg.src = state.convertedUrl;
+              
+              const convertedImg = new Image();
+              convertedImg.onload = () => {
+                elements.convertedDimensions.textContent = `${convertedImg.width} × ${convertedImg.height} px`;
+                elements.convertedSize.textContent = formatFileSize(blob.size);
+                
+                updateStats(state.originalFile.size, blob.size);
+                showLoading(false);
+              };
+              convertedImg.src = state.convertedUrl;
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        
+        img.src = URL.createObjectURL(state.originalFile);
+      }
+
+      function updateStats(originalSize, convertedSize) {
+        elements.statsOriginal.textContent = formatFileSize(originalSize);
+        elements.statsConverted.textContent = formatFileSize(convertedSize);
+        
+        const change = ((convertedSize - originalSize) / originalSize * 100).toFixed(1);
+        const changeText = convertedSize > originalSize ? 
+          `+${change}%` : 
+          `${change}%`;
+        
+        elements.statsChange.textContent = changeText;
+        elements.statsChange.className = convertedSize > originalSize ? 
+          'font-bold text-red-600' : 
+          'font-bold text-green-600';
+        
+        elements.stats.classList.remove('hidden');
+      }
+
+      function downloadImage() {
+        if (!state.convertedBlob) return;
+        
+        const a = document.createElement('a');
+        a.href = state.convertedUrl;
+        a.download = getDownloadFileName();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      function copyImageLink() {
+        if (!state.convertedUrl) return;
+        
+        navigator.clipboard.writeText(state.convertedUrl)
+          .then(() => showAlert('Image link copied to clipboard!', 'success'))
+          .catch(() => showAlert('Failed to copy link', 'error'));
+      }
+
+      function resetTool() {
+        state = {
+          originalFile: null,
+          convertedBlob: null,
+          convertedUrl: null
+        };
+        
+        elements.fileInput.value = '';
+        elements.originalImg.src = '';
+        elements.convertedImg.src = '';
+        elements.originalSize.textContent = '';
+        elements.convertedSize.textContent = '';
+        elements.originalDimensions.textContent = '';
+        elements.convertedDimensions.textContent = '';
+        elements.qualitySlider.value = 85;
+        elements.qualityValue.textContent = '85';
+        elements.estimatedSize.classList.add('hidden');
+        elements.resultsSection.classList.add('hidden');
+        elements.stats.classList.add('hidden');
+      }
+
+      function getDownloadFileName() {
+        if (!state.originalFile) return 'converted-image.jpg';
+        
+        const originalName = state.originalFile.name;
+        const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+        
+        return `${nameWithoutExt}.jpg`;
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        else if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        else return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function showLoading(show) {
+        elements.loadingModal.classList.toggle('hidden', !show);
+      }
+
+      function showAlert(message, type) {
+        alert(`${type.toUpperCase()}: ${message}`);
+      }
+    });
+  </script>
+  <script>
+    function sendHeight() {
+      const height = document.body.scrollHeight;
+      parent.postMessage({ type: "setHeight", height: height }, "*");
+    }
+
+    window.addEventListener("load", sendHeight);
+    window.addEventListener("resize", sendHeight);
+    setInterval(sendHeight, 500);
+  </script>
+</body>
+</html>
